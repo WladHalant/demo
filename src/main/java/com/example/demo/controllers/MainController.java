@@ -1,5 +1,9 @@
 package com.example.demo.controllers;
 
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.rendering.ImageType;
+import org.apache.pdfbox.rendering.PDFRenderer;
+import org.apache.pdfbox.tools.imageio.ImageIOUtil;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,10 +13,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.beans.factory.annotation.Value;
 
 
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
 @Controller
 public class MainController {
     @GetMapping("/")
@@ -35,8 +43,7 @@ public class MainController {
     }
     @PostMapping("/")
     public String add(
-            @RequestParam String text,
-            @RequestParam String tag, Map<String, Object> model,
+            Map<String, Object> model,
             @RequestParam("file") MultipartFile file
     ) throws IOException {
 
@@ -51,12 +58,37 @@ public class MainController {
             String uuidFile = UUID.randomUUID().toString();
             String resultFilename = uuidFile + "." + file.getOriginalFilename();
 
-            file.transferTo(new File(uploadPath + "/" + resultFilename));
+//            file.transferTo(new File(uploadPath + "/" + resultFilename));
+            PDDocument document = PDDocument.load(file.getBytes());
+            PDFRenderer pdfRenderer = new PDFRenderer(document);
+            for (int page = 0; page < document.getNumberOfPages(); ++page)
+            {
+                BufferedImage bim = pdfRenderer.renderImageWithDPI(page, 400, ImageType.RGB);
 
+                // suffix in filename will be used as the file format
+                ImageIOUtil.writeImage(bim, uploadPath + "/" + resultFilename + "-" + (page+1) + ".png", 300);
+            }
+            document.close();
 
         }
 
         return "index";
     }
 
+
+    @GetMapping("/listFiles")
+    public String listFiles(Model model){
+
+        //Creating a File object for directory
+        File directoryPath = new File(uploadPath);
+        //List of all files and directories
+        String contents[] = directoryPath.list();
+        System.out.println("List of files and directories in the specified directory:");
+        for(int i=0; i<contents.length; i++) {
+            System.out.println(contents[i]);
+        }
+
+        model.addAttribute("file", contents[0]);
+        return "listFiles";
+    }
 }
