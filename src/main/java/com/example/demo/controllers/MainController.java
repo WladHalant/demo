@@ -12,7 +12,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.beans.factory.annotation.Value;
 
-
+import java.io.*;
+import java.util.zip.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
@@ -58,7 +59,7 @@ public class MainController {
             String uuidFile = UUID.randomUUID().toString();
             String resultFilename = uuidFile + "." + file.getOriginalFilename();
 
-//            file.transferTo(new File(uploadPath + "/" + resultFilename));
+
             PDDocument document = PDDocument.load(file.getBytes());
             PDFRenderer pdfRenderer = new PDFRenderer(document);
             for (int page = 0; page < document.getNumberOfPages(); ++page)
@@ -68,11 +69,21 @@ public class MainController {
                 // suffix in filename will be used as the file format
                 ImageIOUtil.writeImage(bim, uploadPath + "/" + resultFilename + "-" + (page+1) + ".png", 300);
             }
+            var fileToZip = new File(uploadPath);
+            try (
+                    var fos = new FileOutputStream(uploadPath + ".zip");
+                    var zipOut = new ZipOutputStream(fos)
+            ) {
+                zipFile(fileToZip, fileToZip.getName(), zipOut);
+            }
             document.close();
 
         }
 
         return "index";
+    }
+
+    private void zipFile(File fileToZip, String name, ZipOutputStream zipOut) {
     }
 
 
