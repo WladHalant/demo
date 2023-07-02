@@ -4,6 +4,10 @@ import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.rendering.ImageType;
 import org.apache.pdfbox.rendering.PDFRenderer;
 import org.apache.pdfbox.tools.imageio.ImageIOUtil;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,8 +23,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Controller
 public class MainController {
@@ -71,7 +73,7 @@ public class MainController {
             }
             var fileToZip = new File(uploadPath);
             try (
-                    var fos = new FileOutputStream(uploadPath + ".zip");
+                    var fos = new FileOutputStream(fileToZip.getAbsolutePath() + ".zip");
                     var zipOut = new ZipOutputStream(fos)
             ) {
                 zipFile(fileToZip, fileToZip.getName(), zipOut);
@@ -82,8 +84,47 @@ public class MainController {
 
         return "index";
     }
-
-    private void zipFile(File fileToZip, String name, ZipOutputStream zipOut) {
+    @GetMapping(path = "/index")
+    public ResponseEntity<InputStreamResource> downloadFile() throws Exception {
+        File downloadFile = new File(uploadPath + ".zip");
+        InputStreamResource resource = new InputStreamResource(new FileInputStream(downloadFile));
+        HttpHeaders header = new HttpHeaders();
+        header.add(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=" + downloadFile.getName());
+        header.add("Cache-Control", "no-cache, no-store, must-revalidate");
+        header.add("Pragma", "no-cache");
+        header.add("Expires", "0");
+        return ResponseEntity.ok()
+                .headers(header)
+                .contentLength(downloadFile.length())
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(resource);
+    }
+    private static void zipFile(File fileToZip, String fileName, ZipOutputStream zipOut) throws IOException {
+        if (fileToZip.isHidden()) {
+            return;
+        }
+        if (fileToZip.isDirectory()) {
+            if (fileName.endsWith("/")) {
+                zipOut.putNextEntry(new ZipEntry(fileName));
+            } else {
+                zipOut.putNextEntry(new ZipEntry(fileName + "/"));
+            }
+            zipOut.closeEntry();
+            var children = fileToZip.listFiles();
+            for (File childFile : children) {
+                zipFile(childFile, fileName + "/" + childFile.getName(), zipOut);
+            }
+            return;
+        }
+        try (var fis = new FileInputStream(fileToZip)) {
+            var zipEntry = new ZipEntry(fileName);
+            zipOut.putNextEntry(zipEntry);
+            var bytes = new byte[1024];
+            int length;
+            while ((length = fis.read(bytes)) >= 0) {
+                zipOut.write(bytes, 0, length);
+            }
+        }
     }
 
 
