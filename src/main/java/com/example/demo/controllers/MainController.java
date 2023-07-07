@@ -45,7 +45,7 @@ public class MainController {
         return "index";
     }
     @PostMapping("/")
-    public String add(
+    public ResponseEntity<InputStreamResource> add(
             Map<String, Object> model,
             @RequestParam("file") MultipartFile file
     ) throws IOException {
@@ -82,10 +82,6 @@ public class MainController {
 
         }
 
-        return "index";
-    }
-    @GetMapping(path = "/index")
-    public ResponseEntity<InputStreamResource> downloadFile() throws Exception {
         File downloadFile = new File(uploadPath + ".zip");
         InputStreamResource resource = new InputStreamResource(new FileInputStream(downloadFile));
         HttpHeaders header = new HttpHeaders();
@@ -99,6 +95,7 @@ public class MainController {
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(resource);
     }
+
     private static void zipFile(File fileToZip, String fileName, ZipOutputStream zipOut) throws IOException {
         if (fileToZip.isHidden()) {
             return;
